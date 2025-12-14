@@ -4,7 +4,7 @@
   "description": "native-sea for expo",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cd e2e && npm install && npm start"
   },
   "dependencies": {
     "text-encoding": "^0.7.0",
@@ -12,6 +12,13 @@
     "elliptic": "^6.5.4"
   },
   "devDependencies": {
+    "@babel/eslint-parser": "^7.28.5",
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-native": "^5.0.0",
+    "prettier": "^3.7.4",
     "expo": "^54.0.25",
     "react-native": "0.81.5"
   },

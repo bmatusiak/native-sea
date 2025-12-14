@@ -16,8 +16,8 @@ function toIntArray(x) {
     return x;
 }
 
-const Buffer = (() => require("buffer").Buffer)();
-const { TextEncoder, TextDecoder } = (() => require("text-encoding"))();
+const Buffer = (() => require('buffer').Buffer)();
+const { TextEncoder, TextDecoder } = (() => require('text-encoding'))();
 (function () {
     window = global || window;
     global.Buffer = global.Buffer || Buffer;
@@ -36,23 +36,23 @@ const { TextEncoder, TextDecoder } = (() => require("text-encoding"))();
     };
     window.crypto.getRandomValues = function getRandomValues(typedArray) {
         var Type;
-        if (typedArray instanceof Int8Array) { Type = Int8Array }
-        if (typedArray instanceof Uint8Array) { Type = Uint8Array }
-        if (typedArray instanceof Uint8ClampedArray) { Type = Uint8ClampedArray }
-        if (typedArray instanceof Int16Array) { Type = Int16Array }
-        if (typedArray instanceof Uint16Array) { Type = Uint16Array }
-        if (typedArray instanceof Int32Array) { Type = Int32Array }
-        if (typedArray instanceof Uint32Array) { Type = Uint32Array }
-        if (typedArray instanceof BigInt64Array) { Type = BigInt64Array }
-        if (typedArray instanceof BigUint64Array) { Type = BigUint64Array }
+        if (typedArray instanceof Int8Array) { Type = Int8Array; }
+        if (typedArray instanceof Uint8Array) { Type = Uint8Array; }
+        if (typedArray instanceof Uint8ClampedArray) { Type = Uint8ClampedArray; }
+        if (typedArray instanceof Int16Array) { Type = Int16Array; }
+        if (typedArray instanceof Uint16Array) { Type = Uint16Array; }
+        if (typedArray instanceof Int32Array) { Type = Int32Array; }
+        if (typedArray instanceof Uint32Array) { Type = Uint32Array; }
+        if (typedArray instanceof BigInt64Array) { Type = BigInt64Array; }
+        if (typedArray instanceof BigUint64Array) { Type = BigUint64Array; }
         var rnd = new Type(Int8Array.from(SeaUtil.randomBytesSync(typedArray.length)));
         for (let i = 0; i < typedArray.length; i++) {
             typedArray[i] = rnd[i];
         }
         return rnd;
-    }
+    };
 })();
-const elliptic = require("elliptic");//pair/secret/sign/verify
+const elliptic = require('elliptic');//pair/secret/sign/verify
 const EC = elliptic.ec;
 
 // helper: decode various native randomBytes return types to Uint8Array
@@ -71,7 +71,7 @@ async function getRandomValues(len) {
         if (Array.isArray(res)) return Uint8Array.from(res);
         if (res instanceof Uint8Array) return res;
         if (res.buffer) return Uint8Array.from(res);
-    } catch (e) { }
+    } catch (_) { }
     return new Uint8Array(len);
 }
 
@@ -99,7 +99,7 @@ async function hash256_utf8(s) {
         if (Array.isArray(r)) return Uint8Array.from(r);
         if (r && r.buffer) return Uint8Array.from(r);
         return Uint8Array.from(Buffer.from(String(r), 'base64'));
-    } catch (e) {
+    } catch (_) {
         return Uint8Array.from([]);
     }
 }
@@ -112,7 +112,7 @@ async function hash256(d) {
     return await hash256_utf8(t);
 }
 
-const shim = { Buffer }
+const shim = { Buffer };
 // attach helper functions
 shim.hash256_utf8 = hash256_utf8;
 shim.u8 = u8;
@@ -124,23 +124,23 @@ shim.TextDecoder = TextDecoder;
 shim.random = async (len) => shim.Buffer.from(await getRandomValues(len));
 shim.parse = function (t, r) {
     return new Promise(function (res, rej) {
-        JSON.parseAsync(t, function (err, raw) { err ? rej(err) : res(raw) }, r);
-    })
-}
+        JSON.parseAsync(t, function (err, raw) { err ? rej(err) : res(raw); }, r);
+    });
+};
 shim.stringify = function (v, r, s) {
     return new Promise(function (res, rej) {
-        JSON.stringifyAsync(v, function (err, raw) { err ? rej(err) : res(raw) }, r, s);
-    })
-}
+        JSON.stringifyAsync(v, function (err, raw) { err ? rej(err) : res(raw); }, r, s);
+    });
+};
 shim.S = {};
 shim.S.parse = async function p(t) {
     try {
         var yes = (typeof t == 'string');
-        if (yes && 'SEA{' === t.slice(0, 4)) { t = t.slice(3) }
+        if (yes && 'SEA{' === t.slice(0, 4)) { t = t.slice(3); }
         return yes ? await shim.parse(t) : t;
-    } catch (e) { null; }
+    } catch (_) { null; }
     return t;
-}
+};
 
 const SeaUtil = {
     pair: () => NativeModule.pair(),
@@ -156,15 +156,15 @@ const SeaUtil = {
                 const maybe = await NativeModule.publicFromPrivate(pub);
                 if (maybe && maybe.indexOf('.') !== -1) pub = maybe;
             }
-        } catch (e) { /* ignore and use original pub */ }
+        } catch (_) { /* ignore and use original pub */ }
         return NativeModule.verify(pub, toIntArray(data), sig);
     },
     encrypt: (msg, pKey, iv) => {
         // minimal shim: forward to native implementation
-        return NativeModule.encrypt(msg, pKey, iv)
+        return NativeModule.encrypt(msg, pKey, iv);
     },
     decrypt: (ct, pKey, iv, tag) => {
-        return NativeModule.decrypt(ct, pKey, iv, tag)
+        return NativeModule.decrypt(ct, pKey, iv, tag);
     },
     sha256_utf8: (s) => NativeModule.sha256_utf8 ? NativeModule.sha256_utf8(s) : NativeModule.sha256(s),
     sha256bytes: (b64) => (NativeModule.sha256bytes ? NativeModule.sha256bytes(b64) : NativeModule.sha256bytes_base64 ? NativeModule.sha256bytes_base64(b64) : null),
@@ -185,18 +185,13 @@ const SeaUtil = {
         }
         return NativeModule.pbkdf2(data, salt, iter, ks);
     },
-}
+};
 
 const NativeSeaModule = {
+    shim: shim,
     NativeModule,
-    setupGun: function (Gun) {
-
-
-        this.shim = shim;
-    },
     install: function (Gun) {
         if (Gun.RN) return; // already installed
-        this.setupGun(Gun);
         this.Gun = Gun;
         this.installPair();
         this.installWork();
@@ -209,12 +204,11 @@ const NativeSeaModule = {
     },
     installPair: function () {
         const Gun = this.Gun;
-        const NativeModule = this.NativeModule;
         const SEA = Gun.SEA;
 
         function hash_key(data, additional_data) {
             var ec = new EC('p256');
-            var h = ec.hash().update(data)
+            var h = ec.hash().update(data);
             if (additional_data) {
                 if (!(additional_data instanceof Array)) additional_data = [additional_data];
                 for (let i = 0; i < additional_data.length; i++) {
@@ -231,7 +225,7 @@ const NativeSeaModule = {
             if (private_key) {
                 var priv = arrayBufToBase64UrlEncode(hash_key(private_key, additional_data));
                 var pub = await SeaUtil.publicFromPrivate(priv);
-                return { pub, priv }
+                return { pub, priv };
             }
             else {
                 return await SeaUtil.pair();
@@ -240,10 +234,10 @@ const NativeSeaModule = {
 
         async function doPair(deterministic, data, add_data) {
             var pair;
-            if (deterministic == "deterministic") {
+            if (deterministic == 'deterministic') {
                 pair = await (async () => {
-                    var { pub, priv } = await genKeyPair(data, ["s"].concat(add_data));
-                    var { pub: epub, priv: epriv } = await genKeyPair(data, ["d"].concat(add_data));
+                    var { pub, priv } = await genKeyPair(data, ['s'].concat(add_data));
+                    var { pub: epub, priv: epriv } = await genKeyPair(data, ['d'].concat(add_data));
                     return { pub, priv, epub, epriv };
                 })();
             } else {
@@ -252,7 +246,7 @@ const NativeSeaModule = {
                     var { pub: epub, priv: epriv } = await genKeyPair();
                     return { pub, priv, epub, epriv };
                 })();
-                if (typeof deterministic == "function") deterministic(pair);//callback is only for random
+                if (typeof deterministic == 'function') deterministic(pair);//callback is only for random
             }
             return pair;
         }
@@ -274,15 +268,15 @@ const NativeSeaModule = {
             }
             data = (typeof data == 'string') ? data : await shim.stringify(data);
             if ('sha' === (opt.name || '').toLowerCase().slice(0, 3)) {
-                var rsha = shim.Buffer.from(await hash256(data), 'binary').toString(opt.encode || 'base64')
-                if (cb) try { cb(rsha) } catch (e) { }
+                var rsha = shim.Buffer.from(await hash256(data), 'binary').toString(opt.encode || 'base64');
+                if (cb) try { cb(rsha); } catch (_) { }
                 return rsha;
             }
             salt = salt || (await shim.random(9));
             var S = { pbkdf2: { hash: { name: 'SHA-256' }, iter: 100000, ks: 64 } };
             var r = await SeaUtil.pbkdf2(data, salt, S.pbkdf2.iter, S.pbkdf2.ks * 8);
-            data = (await shim.random(data.length))
-            if (cb) { try { cb(null, r) } catch (e) { } }
+            data = (await shim.random(data.length));
+            if (cb) { try { cb(null, r); } catch (_) { } }
             return r;
         }
 
@@ -301,7 +295,7 @@ const NativeSeaModule = {
             var pub = key.epub || key;
             var epriv = pair.epriv || pair;
             var r = await SeaUtil.secret(pub, epriv);
-            if (cb) { try { cb(null, r) } catch (e) { } }
+            if (cb) { try { cb(null, r); } catch (_) { } }
             return r;
         }
 
@@ -316,17 +310,17 @@ const NativeSeaModule = {
             var json = await shim.S.parse(data);
             if (false === pair) {
                 var raw = await shim.S.parse(json.m);
-                if (cb) try { cb(null, raw) } catch (e) { }
+                if (cb) try { cb(null, raw); } catch (_) { }
                 return raw;
             }
             opt = opt || {};
-            opt.ok = "?";
+            opt.ok = '?';
             var pub = pair.pub || pair;
             var json_dd = await hash256(json.m);
             var check = await SeaUtil.verify(pub, json_dd, json.s);
-            if (!check) { throw "Signature did not match." }
+            if (!check) { throw 'Signature did not match.'; }
             var r = check ? await shim.S.parse(json.m) : u;
-            if (cb) { try { cb(null, r) } catch (e) { } }
+            if (cb) { try { cb(null, r); } catch (_) { } }
             return r;
         }
 
@@ -343,22 +337,22 @@ const NativeSeaModule = {
                 if (!SEA.I) throw new Error('No identity');
                 pair = await SEA.I(null, { what: data, how: 'sign', why: opt.why });
             }
-            if (u === data) { throw '`undefined` not allowed.' }
+            if (u === data) { throw '`undefined` not allowed.'; }
             var json = await shim.S.parse(data);
             var check = opt.check = opt.check || json;
             if (SEA.verify && (SEA.opt && SEA.opt.check ? SEA.opt.check(check) : (check && check.s && check.m))
                 && u !== await SEA.verify(check, pair)) {
                 var r = await shim.S.parse(check);
                 if (!opt.raw) r = r;
-                if (cb) try { cb(null, r) } catch (e) { }
+                if (cb) try { cb(null, r); } catch (_) { }
                 return r;
             }
             var priv = pair.priv;
             var json_dd = await hash256(json);
             var siged = await SeaUtil.sign(priv, json_dd);
             var sig = { m: json, s: siged };
-            if (!opt.raw) { sig = 'SEA' + await shim.stringify(sig) }
-            if (cb) { try { cb(null, sig) } catch (e) { } }
+            if (!opt.raw) { sig = 'SEA' + await shim.stringify(sig); }
+            if (cb) { try { cb(null, sig); } catch (_) { } }
             return sig;
         }
 
@@ -372,7 +366,7 @@ const NativeSeaModule = {
             var u;
             opt = opt || {};
             var key = (pair || opt).epriv || pair;
-            if (u === data) { throw '`undefined` not allowed.' }
+            if (u === data) { throw '`undefined` not allowed.'; }
             if (!key) {
                 if (!SEA.I) throw new Error('No identity');
                 pair = await SEA.I(null, { what: data, how: 'encrypt', why: opt.why });
@@ -380,20 +374,20 @@ const NativeSeaModule = {
             }
             var msg = (typeof data == 'string') ? data : await shim.stringify(data);
             // Use 12-byte IV for AES-GCM to match typical nonce length and native expectation
-            var iv = Buffer.from(await shim.random(12)).toString("base64");
+            var iv = Buffer.from(await shim.random(12)).toString('base64');
             var salt = Buffer.from(await shim.random(9));
             var tkey = key + shim.bytes2string(salt);
             var pKey = Array.from(await shim.hash256_utf8(tkey));
-            msg = Buffer.from(msg).toString("base64");
-            pKey = Buffer.from(pKey).toString("base64");
+            msg = Buffer.from(msg).toString('base64');
+            pKey = Buffer.from(pKey).toString('base64');
             var ct = await SeaUtil.encrypt(msg, pKey, iv);
             var r = {
                 ct,
-                s: salt.toString("base64"),
+                s: salt.toString('base64'),
                 iv: iv
-            }
-            if (!opt.raw) { r = 'SEA' + await shim.stringify(r) }
-            if (cb) { try { cb(null, r) } catch (e) { } }
+            };
+            if (!opt.raw) { r = 'SEA' + await shim.stringify(r); }
+            if (cb) { try { cb(null, r); } catch (_) { } }
             return r;
         }
 
@@ -412,25 +406,25 @@ const NativeSeaModule = {
                 key = pair.epriv || pair;
             }
             var json = await shim.S.parse(data);
-            var tkey = key + shim.bytes2string(Buffer.from(json.s, "base64"))
+            var tkey = key + shim.bytes2string(Buffer.from(json.s, 'base64'));
             var pKey = Array.from(await shim.hash256_utf8(tkey));
-            var ctx = shim.u8(Buffer.from(json.ct, "base64"));
+            var ctx = shim.u8(Buffer.from(json.ct, 'base64'));
             var tag = ctx.slice(ctx.length - 16, ctx.length);
             var ct = ctx.slice(0, ctx.length - 16);
             var r = await SeaUtil.decrypt(
-                Buffer.from(ct).toString("base64"),
-                Buffer.from(pKey).toString("base64"),
+                Buffer.from(ct).toString('base64'),
+                Buffer.from(pKey).toString('base64'),
                 json.iv,
-                Buffer.from(tag).toString("base64"),
-            )
+                Buffer.from(tag).toString('base64'),
+            );
             r = await shim.S.parse(r);
 
-            if (cb) { try { cb(null, r) } catch (e) { } }
+            if (cb) { try { cb(null, r); } catch (_) { } }
             return r;
         }
 
         SEA.decrypt = doDecrypt;
     }
-}
+};
 
 export default NativeSeaModule;
