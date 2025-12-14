@@ -3,7 +3,6 @@ import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
 import GunHost from '../gun_webview_test/host.js';
-NativeSea.install(Gun);
 
 module.exports = function _00_gun_setup({ describe, it }) {
     describe(_00_gun_setup.name, () => {
@@ -24,6 +23,7 @@ module.exports = function _00_gun_setup({ describe, it }) {
         });
 
         it('NativeSea setup', async ({ log, assert }) => {
+            NativeSea.install(Gun);
             assert.ok(typeof Gun !== 'undefined', 'Gun is defined');
             assert.ok(typeof Gun.SEA !== 'undefined', 'Gun.SEA is defined');
             assert.ok(typeof Gun.RN !== 'undefined', 'Gun.RN is defined');

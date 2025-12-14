@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
-  "author": "",
-  "type": "commonjs",
+  "author": "Bradley Matusiak <bmatusiak@gmail.com> (bmatusiak)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,5 +12,14 @@
     "text-encoding": "^0.7.0",
     "buffer": "^6.0.3",
     "elliptic": "^6.5.4"
+  },
+  "devDependencies": {
+    "expo": "^54.0.25",
+    "react-native": "0.81.5"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
   }
 }
