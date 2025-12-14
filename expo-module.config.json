@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["NativeSeaModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.nativesea.NativeSeaModule"]
+  }
+}
