@@ -1,4 +1,3 @@
-import NativeSea from 'native-sea';
 import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
@@ -15,7 +14,6 @@ module.exports = function _01_pair({ describe, it }) {
         });
 
         it('derive key, using unofficial API (NativeSea)', async ({ assert }) => {
-            NativeSea.install(Gun);
             const SEA = Gun.SEA;
             // SEA.pair(deterministic, data, add_data) ! deterministic must be 'deterministic' string to trigger
             const pair = await SEA.pair('deterministic', 'test-seed', ['extra', 'data']);
@@ -24,7 +22,6 @@ module.exports = function _01_pair({ describe, it }) {
         });
 
         it('pair generation & pubFromPrivate (NativeSea)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const TEST_PAIR = config.TEST_DATA.pair;
             const SEA = Gun.SEA;
             const pair = await SEA.pair();

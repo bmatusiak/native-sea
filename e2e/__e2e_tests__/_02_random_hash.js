@@ -1,5 +1,4 @@
 import NativeSea from 'native-sea';
-import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
 
@@ -20,7 +19,6 @@ module.exports = function _02_random_hash({ describe, it }) {
         });
 
         it('random bytes and sha256 (NativeSea)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const SeaUtil = NativeSea.NativeModule;
             const TEST_MESSAGE = config.TEST_DATA.test_message;
 

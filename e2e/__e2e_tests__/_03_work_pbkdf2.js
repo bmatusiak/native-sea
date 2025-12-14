@@ -1,4 +1,3 @@
-import NativeSea from 'native-sea';
 import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
@@ -25,7 +24,6 @@ module.exports = function _03_work_pbkdf2({ describe, it }) {
         });
 
         it('work (NativeSea)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const SEA = Gun.SEA;
             const WorkData = config.TEST_DATA.work;
 

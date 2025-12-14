@@ -1,9 +1,7 @@
 {
   "name": "native-sea",
   "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "Bradley Matusiak <bmatusiak@gmail.com> (bmatusiak)",
+  "description": "native-sea for expo",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -21,5 +19,15 @@
     "expo": "*",
     "react": "*",
     "react-native": "*"
-  }
+  },  
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bmatusiak/native-sea.git"
+  },
+  "author": "bmatusiak <bmatusiak@gmail.com> (https://github.com/bmatusiak)",
+  "license": "(Zlib OR MIT OR Apache-2.0)",
+  "bugs": {
+    "url": "https://github.com/bmatusiak/native-sea/issues"
+  },
+  "homepage": "https://github.com/bmatusiak/native-sea#readme"
 }

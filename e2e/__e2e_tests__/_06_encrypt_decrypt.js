@@ -1,4 +1,3 @@
-import NativeSea from 'native-sea';
 import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
@@ -7,7 +6,6 @@ module.exports = function _06_encrypt_decrypt({ describe, it }) {
     describe(_06_encrypt_decrypt.name, () => {
 
         it('encrypt (SeaProxy) vs decrypt (NativeSea)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const SEA = Gun.SEA;
             const TEST_MESSAGE = config.TEST_DATA.test_message;
             const TEST_PAIR_PROXY = config.TEST_DATA.pair_proxy;
@@ -23,7 +21,6 @@ module.exports = function _06_encrypt_decrypt({ describe, it }) {
         });
 
         it('encrypt (NativeSea) vs decrypt (SeaProxy)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const SEA = Gun.SEA;
             const TEST_MESSAGE = config.TEST_DATA.test_message;
             const TEST_PAIR_PROXY = config.TEST_DATA.pair_proxy;

@@ -1,4 +1,3 @@
-import NativeSea from 'native-sea';
 import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
@@ -18,7 +17,6 @@ module.exports = function _04_secret({ describe, it }) {
 
         let secret_sea_native = null;
         it('secret derivation (NativeSea)', async ({ assert, config }) => {
-            NativeSea.install(Gun);
             const SEA = Gun.SEA;
 
             const TEST_PAIR_PROXY = config.TEST_DATA.pair_proxy;
