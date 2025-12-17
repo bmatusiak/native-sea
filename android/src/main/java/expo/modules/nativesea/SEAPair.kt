@@ -21,6 +21,13 @@ import org.spongycastle.jce.interfaces.ECPrivateKey
 import org.spongycastle.jce.interfaces.ECPublicKey
 
 object SEAPair {
+  init {
+    // native library already loaded by SEAWork, no-op here
+  }
+
+  @JvmStatic
+  private external fun nativePublicFromPrivate(inputPrivateKey: String): String?
+
   @JvmStatic
   fun pair(): Array<String> {
     val p = NISTNamedCurves.getByName("P-256")
@@ -74,26 +81,37 @@ object SEAPair {
 
   @JvmStatic
   fun publicFromPrivate(inputPrivateKey: String): String {
-    val curve = "secp256r1"
-    try {
-      val keyFactory = KeyFactory.getInstance("EC", "SC")
-      val ecSpec = ECNamedCurveTable.getParameterSpec(curve)
-      val privateKeyS = Base64.decode(inputPrivateKey, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-      val privateKeySpec = ECPrivateKeySpec(BigIntegers.fromUnsignedByteArray(privateKeyS), ecSpec)
-      val privateKey = keyFactory.generatePrivate(privateKeySpec) as ECPrivateKey
-      val Q = ecSpec.g.multiply(privateKey.d)
-      val pubSpec = ECPublicKeySpec(Q, ecSpec)
-      val publicKeyGenerated = keyFactory.generatePublic(pubSpec) as ECPublicKey
-      val ecPoint = publicKeyGenerated.q
-      val x = ecPoint.affineXCoord.toBigInteger()
-      val y = ecPoint.affineYCoord.toBigInteger()
-      val X = BigIntegers.asUnsignedByteArray(x)
-      val Y = BigIntegers.asUnsignedByteArray(y)
-      val out = Base64.encodeToString(X, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP) + "." + Base64.encodeToString(Y, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-      
-      return out
-    } catch (e: Exception) {
-      throw RuntimeException(e)
+    // Explicit: use native when enabled; Java logic placed in an else block so it's visually obvious.
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val nativeOut = nativePublicFromPrivate(inputPrivateKey)
+        if (nativeOut != null) return nativeOut
+        throw RuntimeException("nativePublicFromPrivate returned null")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativePublicFromPrivate failed", e)
+      }
+    } else {
+      val curve = "secp256r1"
+      try {
+        val keyFactory = KeyFactory.getInstance("EC", "SC")
+        val ecSpec = ECNamedCurveTable.getParameterSpec(curve)
+        val privateKeyS = Base64.decode(inputPrivateKey, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        val privateKeySpec = ECPrivateKeySpec(BigIntegers.fromUnsignedByteArray(privateKeyS), ecSpec)
+        val privateKey = keyFactory.generatePrivate(privateKeySpec) as ECPrivateKey
+        val Q = ecSpec.g.multiply(privateKey.d)
+        val pubSpec = ECPublicKeySpec(Q, ecSpec)
+        val publicKeyGenerated = keyFactory.generatePublic(pubSpec) as ECPublicKey
+        val ecPoint = publicKeyGenerated.q
+        val x = ecPoint.affineXCoord.toBigInteger()
+        val y = ecPoint.affineYCoord.toBigInteger()
+        val X = BigIntegers.asUnsignedByteArray(x)
+        val Y = BigIntegers.asUnsignedByteArray(y)
+        val out = Base64.encodeToString(X, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP) + "." + Base64.encodeToString(Y, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+
+        return out
+      } catch (e: Exception) {
+        throw RuntimeException(e)
+      }
     }
   }
 }

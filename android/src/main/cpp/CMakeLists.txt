@@ -25,6 +25,7 @@ endif()
 add_library(native_sea SHARED
   digest.cpp
   pbkdf2.cpp
+  native_seapair.cpp
 )
 
 target_include_directories(native_sea PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
