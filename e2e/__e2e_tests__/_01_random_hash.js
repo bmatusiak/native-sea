@@ -2,8 +2,8 @@ import NativeSea from 'native-sea';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
 
-module.exports = function _02_random_hash({ describe, it }) {
-    describe(_02_random_hash.name, () => {
+module.exports = function _01_random_hash({ describe, it }) {
+    describe(_01_random_hash.name, () => {
 
         let sha256_raw_proxy = null;
         let sha256_raw_native = null;

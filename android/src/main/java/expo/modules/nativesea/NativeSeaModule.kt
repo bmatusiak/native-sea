@@ -9,6 +9,8 @@ import android.util.Log
 
 class NativeSeaModule : Module() {
   companion object {
+    @JvmField
+    var useNativeCrypto: Boolean = true
     init {
       try {
         if (Security.getProvider("SC") == null) {

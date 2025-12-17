@@ -36,6 +36,12 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.7.6"
+    externalNativeBuild {
+      cmake {
+        // CMake will be told where to find the unpacked Prefab via this argument
+        arguments "-DOPENSSL_PREFAB_DIR=${project.buildDir}/intermediates/nativeSeaAar/prefab/modules/openssl"
+      }
+    }
   }
   lintOptions {
     abortOnError false
@@ -53,4 +59,20 @@ dependencies {
   implementation 'com.madgag.spongycastle:pg:1.54.0.0'
   // Provide React Native bridge types when compiling the module
   implementation "com.facebook.react:react-native:+"
+}
+
+// Unpack only the Prefab metadata from the shipped AAR so CMake can consume it.
+def nativeSeaAar = file("${projectDir}/../node_modules/native-sea-openssl/android/native-sea-openssl-release.aar")
+task unpackNativeSeaAar(type: Copy) {
+  onlyIf { nativeSeaAar.exists() }
+  from { zipTree(nativeSeaAar) }
+  include "prefab/**"
+  into "${buildDir}/intermediates/nativeSeaAar"
+}
+preBuild.dependsOn unpackNativeSeaAar
+
+android.externalNativeBuild {
+  cmake {
+    path "src/main/cpp/CMakeLists.txt"
+  }
 }

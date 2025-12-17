@@ -2,8 +2,8 @@ import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
 
-module.exports = function _03_work_pbkdf2({ describe, it }) {
-    describe(_03_work_pbkdf2.name, () => {
+module.exports = function _02_work_pbkdf2({ describe, it }) {
+    describe(_02_work_pbkdf2.name, () => {
         /*
         config.TEST_DATA.work = {
             input: test_message,

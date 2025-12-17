@@ -7,9 +7,10 @@
     "test": "cd e2e && npm install && npm start"
   },
   "dependencies": {
-    "text-encoding": "^0.7.0",
     "buffer": "^6.0.3",
-    "elliptic": "^6.5.4"
+    "elliptic": "^6.5.4",
+    "native-sea-openssl": "https://github.com/bmatusiak/native-sea-openssl/releases/download/v3.5.4/native-sea-openssl.tar.gz",
+    "text-encoding": "^0.7.0"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.28.5",
@@ -18,15 +19,15 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-native": "^5.0.0",
-    "prettier": "^3.7.4",
     "expo": "^54.0.25",
+    "prettier": "^3.7.4",
     "react-native": "0.81.5"
   },
   "peerDependencies": {
     "expo": "*",
     "react": "*",
     "react-native": "*"
-  },  
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bmatusiak/native-sea.git"

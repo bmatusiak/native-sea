@@ -2,8 +2,8 @@ import Gun from 'gun';
 import 'gun/sea';
 import SeaProxy from '../gun_webview_test/index.js';
 
-module.exports = function _01_pair({ describe, it }) {
-    describe(_01_pair.name, () => {
+module.exports = function _03_pair({ describe, it }) {
+    describe(_03_pair.name, () => {
 
         it('pair generation (SeaProxy)', async ({ assert, config }) => {
             const pair = await SeaProxy.SEA.pair();

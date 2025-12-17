@@ -9,6 +9,17 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 object SEAWork {
+  init {
+    try {
+      System.loadLibrary("native_sea")
+    } catch (e: UnsatisfiedLinkError) {
+      // library may not be available during some IDE tasks - fall back to Java
+    }
+  }
+
+  @JvmStatic
+  external fun nativeDigest(algo: String, data: ByteArray?): ByteArray?
+
   @JvmStatic
   fun pbkdf2(pwd: String, salt: String, iter: Int?, bitSize: Int?): String {
     val algorithmDigest: Digest = SHA256Digest()
@@ -42,15 +53,28 @@ object SEAWork {
 
   @JvmStatic
   fun digestBytes(algo: String, data: ByteArray): ByteArray {
-    val md = MessageDigest.getInstance(algo)
-    md.update(data)
-    return md.digest()
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val out = nativeDigest(algo, data)
+        if (out != null) return out
+        throw IllegalStateException("nativeDigest returned null for algorithm: $algo")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativeDigest failed for algorithm: $algo", e)
+      }
+    } else {
+      return runJavaDigest(algo, data)
+    }
   }
 
   @JvmStatic
   fun digestString(algo: String, data: String): ByteArray {
+    val bytes = data.toByteArray()
+    return digestBytes(algo, bytes)
+  }
+
+  private fun runJavaDigest(algo: String, data: ByteArray): ByteArray {
     val md = MessageDigest.getInstance(algo)
-    md.update(data.toByteArray())
+    md.update(data)
     return md.digest()
   }
 }
