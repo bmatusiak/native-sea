@@ -21,11 +21,15 @@ object SEAWork {
   private external fun nativeDigest(algo: String, data: ByteArray?): ByteArray?
 
   @JvmStatic
+  private external fun nativePbkdf2(pwd: String, salt: ByteArray?, iter: Int, keyLenBits: Int): ByteArray?
+
+  @JvmStatic
   fun pbkdf2(pwd: String, salt: String, iter: Int?, bitSize: Int?): String {
-    val algorithmDigest: Digest = SHA256Digest()
-    val gen = PKCS5S2ParametersGenerator(algorithmDigest)
-    // Accept salt as either a UTF-8 string or as a comma-separated list of numeric bytes
-    if (salt.contains(",")) {
+    val iters = iter ?: 1000
+    val bits = bitSize ?: 256
+
+    // Convert salt (supports comma-separated numeric or UTF-8 string)
+    val saltBytes: ByteArray = if (salt.contains(",")) {
       val parts = salt.split(",").map { it.trim() }
       val bytes = ByteArray(parts.size)
       for (i in parts.indices) {
@@ -33,22 +37,49 @@ object SEAWork {
         if (v.isEmpty()) continue
         bytes[i] = v.toInt().toByte()
       }
-      gen.init(pwd.toByteArray(StandardCharsets.UTF_8), bytes, iter ?: 1000)
+      bytes
     } else {
-      gen.init(pwd.toByteArray(StandardCharsets.UTF_8), salt.toByteArray(StandardCharsets.UTF_8), iter ?: 1000)
+      salt.toByteArray(StandardCharsets.UTF_8)
     }
-    val key = (gen.generateDerivedParameters((bitSize ?: 256))) as KeyParameter
+
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val out = nativePbkdf2(pwd, saltBytes, iters, bits)
+        if (out != null) return Base64.encodeToString(out, Base64.NO_WRAP)
+        throw IllegalStateException("nativePbkdf2 returned null")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativePbkdf2 failed", e)
+      }
+    }
+
+    val algorithmDigest: Digest = SHA256Digest()
+    val gen = PKCS5S2ParametersGenerator(algorithmDigest)
+    gen.init(pwd.toByteArray(StandardCharsets.UTF_8), saltBytes, iters)
+    val key = (gen.generateDerivedParameters(bits)) as KeyParameter
     return Base64.encodeToString(key.key, Base64.NO_WRAP)
   }
 
   @JvmStatic
   fun pbkdf2(pwd: String, saltList: List<Int>, iter: Int?, bitSize: Int?): String {
-    val algorithmDigest: Digest = SHA256Digest()
-    val gen = PKCS5S2ParametersGenerator(algorithmDigest)
-    val bytes = SEAUtil.readableListToByteArray(saltList)
-    gen.init(pwd.toByteArray(StandardCharsets.UTF_8), bytes, iter ?: 1000)
-    val key = (gen.generateDerivedParameters((bitSize ?: 256))) as KeyParameter
-    return Base64.encodeToString(key.key, Base64.NO_WRAP)
+    val iters = iter ?: 1000
+    val bits = bitSize ?: 256
+    val saltBytes = SEAUtil.readableListToByteArray(saltList)
+
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val out = nativePbkdf2(pwd, saltBytes, iters, bits)
+        if (out != null) return Base64.encodeToString(out, Base64.NO_WRAP)
+        throw IllegalStateException("nativePbkdf2 returned null")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativePbkdf2 failed", e)
+      }
+    } else {
+      val algorithmDigest: Digest = SHA256Digest()
+      val gen = PKCS5S2ParametersGenerator(algorithmDigest)
+      gen.init(pwd.toByteArray(StandardCharsets.UTF_8), saltBytes, iters)
+      val key = (gen.generateDerivedParameters(bits)) as KeyParameter
+      return Base64.encodeToString(key.key, Base64.NO_WRAP)
+    }
   }
 
   @JvmStatic
