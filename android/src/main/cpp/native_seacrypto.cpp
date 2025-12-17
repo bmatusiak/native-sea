@@ -9,26 +9,46 @@
 #include <openssl/err.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#include <openssl/ec.h>
+#include <openssl/bn.h>
 
 #define LOG_TAG "native_seacrypto"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-static bool b64_decode(const std::string &in, std::vector<unsigned char> &out) {
-  BIO *b64 = BIO_new(BIO_f_base64());
-  BIO *bmem = BIO_new_mem_buf(in.data(), (int)in.size());
-  if (!b64 || !bmem) {
-    BIO_free_all(b64);
-    BIO_free_all(bmem);
-    return false;
+// reuse url-safe base64 helpers compatible with other native code
+static std::vector<unsigned char> base64UrlDecode(const std::string& in) {
+  std::string s = in;
+  for (char &c : s) {
+    if (c == '-') c = '+';
+    else if (c == '_') c = '/';
   }
+  size_t mod = s.size() % 4;
+  if (mod) s.append(4 - mod, '=');
+
+  BIO* b64 = BIO_new(BIO_f_base64());
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  BIO_push(b64, bmem);
-  out.assign(in.size(), 0);
-  int decoded = BIO_read(b64, out.data(), (int)out.size());
-  BIO_free_all(b64);
-  if (decoded <= 0) return false;
+  BIO* bmem = BIO_new_mem_buf(s.data(), (int)s.size());
+  bmem = BIO_push(b64, bmem);
+
+  std::vector<unsigned char> out(s.size());
+  int decoded = BIO_read(bmem, out.data(), (int)out.size());
+  BIO_free_all(bmem);
+  if (decoded <= 0) return {};
   out.resize(decoded);
-  return true;
+  return out;
+}
+
+static void throwRuntimeException(JNIEnv *env, const char *msg) {
+  jclass exCls = env->FindClass("java/lang/RuntimeException");
+  if (exCls) env->ThrowNew(exCls, msg);
+}
+
+static std::string toStdString(JNIEnv* env, jstring s) {
+  if (s == nullptr) return std::string();
+  const char* utf = env->GetStringUTFChars(s, nullptr);
+  std::string out(utf);
+  env->ReleaseStringUTFChars(s, utf);
+  return out;
 }
 
 static bool b64_encode(const unsigned char *data, int len, std::string &out) {
@@ -54,9 +74,24 @@ static bool b64_encode(const unsigned char *data, int len, std::string &out) {
   return true;
 }
 
-static void throwRuntimeException(JNIEnv *env, const char *msg) {
-  jclass exCls = env->FindClass("java/lang/RuntimeException");
-  if (exCls) env->ThrowNew(exCls, msg);
+static bool b64_decode(const char *in, std::vector<unsigned char> &out) {
+  if (!in) return false;
+  size_t len = strlen(in);
+  BIO *b64 = BIO_new(BIO_f_base64());
+  BIO *bmem = BIO_new_mem_buf((void*)in, (int)len);
+  if (!b64 || !bmem) {
+    BIO_free_all(b64);
+    BIO_free_all(bmem);
+    return false;
+  }
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  BIO_push(b64, bmem);
+  out.assign(len, 0);
+  int decoded = BIO_read(b64, out.data(), (int)out.size());
+  BIO_free_all(b64);
+  if (decoded <= 0) return false;
+  out.resize(decoded);
+  return true;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -67,7 +102,50 @@ Java_expo_modules_nativesea_SEACrypto_nativeEncryptAesGcm(JNIEnv *env, jclass /*
   std::string outB64;
 
   std::vector<unsigned char> text, key, iv;
-  bool ok = b64_decode(textB64, text) && b64_decode(keyB64, key) && b64_decode(ivB64, iv);
+  // AES inputs use standard base64 without URL-safe transformations
+  bool ok = false;
+  // decode text
+  {
+    BIO *b64 = BIO_new(BIO_f_base64());
+    BIO *bmem = BIO_new_mem_buf(textB64, (int)strlen(textB64));
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO_push(b64, bmem);
+    text.assign(strlen(textB64), 0);
+    int decoded = BIO_read(b64, text.data(), (int)text.size());
+    BIO_free_all(b64);
+    if (decoded > 0) {
+      text.resize(decoded);
+      ok = true;
+    }
+  }
+  if (ok) {
+    auto decKey = base64UrlDecode(keyB64); // keys may be URL-safe or standard; try URL-safe first
+    if (!decKey.empty()) { key = std::move(decKey); }
+    else {
+      BIO *b64 = BIO_new(BIO_f_base64());
+      BIO *bmem = BIO_new_mem_buf(keyB64, (int)strlen(keyB64));
+      BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+      BIO_push(b64, bmem);
+      key.assign(strlen(keyB64), 0);
+      int decoded = BIO_read(b64, key.data(), (int)key.size());
+      BIO_free_all(b64);
+      if (decoded > 0) key.resize(decoded); else ok = false;
+    }
+  }
+  if (ok) {
+    auto decIv = base64UrlDecode(ivB64);
+    if (!decIv.empty()) { iv = std::move(decIv); }
+    else {
+      BIO *b64 = BIO_new(BIO_f_base64());
+      BIO *bmem = BIO_new_mem_buf(ivB64, (int)strlen(ivB64));
+      BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+      BIO_push(b64, bmem);
+      iv.assign(strlen(ivB64), 0);
+      int decoded = BIO_read(b64, iv.data(), (int)iv.size());
+      BIO_free_all(b64);
+      if (decoded > 0) iv.resize(decoded); else ok = false;
+    }
+  }
   env->ReleaseStringUTFChars(jtextB64, textB64);
   env->ReleaseStringUTFChars(jkeyB64, keyB64);
   env->ReleaseStringUTFChars(jivB64, ivB64);
@@ -213,4 +291,111 @@ Java_expo_modules_nativesea_SEACrypto_nativeDecryptAesGcm(JNIEnv *env, jclass /*
 
   throwRuntimeException(env, "nativeDecryptAesGcm: decryption failed (tag mismatch or invalid data)");
   return nullptr;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_expo_modules_nativesea_SEASecret_nativeDerive(JNIEnv* env, jclass /*cls*/, jstring jprivB64, jstring jpubXY) {
+  std::string privB64 = toStdString(env, jprivB64);
+  std::string pubXY = toStdString(env, jpubXY);
+  if (privB64.empty() || pubXY.empty()) {
+    throwRuntimeException(env, "nativeDerive: inputs empty");
+    return nullptr;
+  }
+
+  auto privBytes = base64UrlDecode(privB64);
+  if (privBytes.empty()) {
+    throwRuntimeException(env, "nativeDerive: failed to decode priv base64");
+    return nullptr;
+  }
+
+  size_t dot = pubXY.find('.');
+  if (dot == std::string::npos) {
+    throwRuntimeException(env, "nativeDerive: invalid pub format");
+    return nullptr;
+  }
+  std::string xb64 = pubXY.substr(0, dot);
+  std::string yb64 = pubXY.substr(dot + 1);
+  auto xbytes = base64UrlDecode(xb64);
+  auto ybytes = base64UrlDecode(yb64);
+  if (xbytes.empty() || ybytes.empty()) {
+    throwRuntimeException(env, "nativeDerive: failed to decode pub coords");
+    return nullptr;
+  }
+
+  int nid = NID_X9_62_prime256v1;
+  EC_GROUP* group = EC_GROUP_new_by_curve_name(nid);
+  if (!group) { throwRuntimeException(env, "nativeDerive: EC_GROUP_new_by_curve_name failed"); return nullptr; }
+  BN_CTX* ctx = BN_CTX_new();
+  if (!ctx) { EC_GROUP_free(group); throwRuntimeException(env, "nativeDerive: BN_CTX_new failed"); return nullptr; }
+
+  BIGNUM* priv_bn = BN_bin2bn(privBytes.data(), (int)privBytes.size(), nullptr);
+  if (!priv_bn) { BN_CTX_free(ctx); EC_GROUP_free(group); throwRuntimeException(env, "nativeDerive: BN_bin2bn failed"); return nullptr; }
+
+  EC_POINT* pub = EC_POINT_new(group);
+  if (!pub) { BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group); throwRuntimeException(env, "nativeDerive: EC_POINT_new failed"); return nullptr; }
+
+  BIGNUM* x_bn = BN_bin2bn(xbytes.data(), (int)xbytes.size(), nullptr);
+  BIGNUM* y_bn = BN_bin2bn(ybytes.data(), (int)ybytes.size(), nullptr);
+  if (!x_bn || !y_bn) {
+    if (x_bn) BN_free(x_bn); if (y_bn) BN_free(y_bn);
+    EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: BN_bin2bn for coords failed");
+    return nullptr;
+  }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (1 != EC_POINT_set_affine_coordinates(group, pub, x_bn, y_bn, ctx)) {
+#else
+  if (1 != EC_POINT_set_affine_coordinates_GFp(group, pub, x_bn, y_bn, ctx)) {
+#endif
+    BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: EC_POINT_set_affine_coordinates failed");
+    return nullptr;
+  }
+
+  EC_POINT* shared = EC_POINT_new(group);
+  if (!shared) {
+    BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: EC_POINT_new(shared) failed");
+    return nullptr;
+  }
+
+  if (1 != EC_POINT_mul(group, shared, nullptr, pub, priv_bn, ctx)) {
+    EC_POINT_free(shared); BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: EC_POINT_mul failed");
+    return nullptr;
+  }
+
+  BIGNUM* sx = BN_new();
+  BIGNUM* sy = BN_new();
+  if (!sx || !sy) {
+    if (sx) BN_free(sx); if (sy) BN_free(sy);
+    EC_POINT_free(shared); BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: BN_new failed");
+    return nullptr;
+  }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (1 != EC_POINT_get_affine_coordinates(group, shared, sx, sy, ctx)) {
+#else
+  if (1 != EC_POINT_get_affine_coordinates_GFp(group, shared, sx, sy, ctx)) {
+#endif
+    BN_free(sx); BN_free(sy); EC_POINT_free(shared); BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+    throwRuntimeException(env, "nativeDerive: EC_POINT_get_affine_coordinates failed");
+    return nullptr;
+  }
+
+  int s_len = BN_num_bytes(sx);
+  std::vector<unsigned char> s_bytes(s_len);
+  BN_bn2bin(sx, s_bytes.data());
+
+  BN_free(sx); BN_free(sy); EC_POINT_free(shared); BN_free(x_bn); BN_free(y_bn); EC_POINT_free(pub); BN_free(priv_bn); BN_CTX_free(ctx); EC_GROUP_free(group);
+
+  jbyteArray out = env->NewByteArray((jsize)s_bytes.size());
+  if (!out) {
+    throwRuntimeException(env, "nativeDerive: NewByteArray failed");
+    return nullptr;
+  }
+  env->SetByteArrayRegion(out, 0, (jsize)s_bytes.size(), reinterpret_cast<const jbyte*>(s_bytes.data()));
+  return out;
 }
