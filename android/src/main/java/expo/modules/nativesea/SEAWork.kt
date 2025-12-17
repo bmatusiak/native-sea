@@ -50,13 +50,13 @@ object SEAWork {
       } catch (e: Throwable) {
         throw RuntimeException("nativePbkdf2 failed", e)
       }
+    }else{
+      val algorithmDigest: Digest = SHA256Digest()
+      val gen = PKCS5S2ParametersGenerator(algorithmDigest)
+      gen.init(pwd.toByteArray(StandardCharsets.UTF_8), saltBytes, iters)
+      val key = (gen.generateDerivedParameters(bits)) as KeyParameter
+      return Base64.encodeToString(key.key, Base64.NO_WRAP)
     }
-
-    val algorithmDigest: Digest = SHA256Digest()
-    val gen = PKCS5S2ParametersGenerator(algorithmDigest)
-    gen.init(pwd.toByteArray(StandardCharsets.UTF_8), saltBytes, iters)
-    val key = (gen.generateDerivedParameters(bits)) as KeyParameter
-    return Base64.encodeToString(key.key, Base64.NO_WRAP)
   }
 
   @JvmStatic
