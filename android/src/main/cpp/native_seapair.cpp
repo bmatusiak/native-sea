@@ -171,3 +171,149 @@ Java_expo_modules_nativesea_SEAPair_nativePublicFromPrivate(JNIEnv* env, jclass 
 
   return env->NewStringUTF(out.c_str());
 }
+
+extern "C"
+JNIEXPORT jobjectArray JNICALL
+Java_expo_modules_nativesea_SEAPair_nativePair(JNIEnv* env, jclass /*cls*/) {
+  int nid = NID_X9_62_prime256v1; // secp256r1
+  EC_GROUP* group = EC_GROUP_new_by_curve_name(nid);
+  if (!group) {
+    throwRuntimeException(env, "EC_GROUP_new_by_curve_name failed");
+    return nullptr;
+  }
+
+  BN_CTX* ctx = BN_CTX_new();
+  if (!ctx) {
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "BN_CTX_new failed");
+    return nullptr;
+  }
+
+  const BIGNUM* order = EC_GROUP_get0_order(group);
+  if (!order) {
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "EC_GROUP_get0_order failed");
+    return nullptr;
+  }
+
+  BIGNUM* priv = BN_new();
+  if (!priv) {
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "BN_new failed");
+    return nullptr;
+  }
+
+  // Generate private scalar in range [1, order-1]
+  if (1 != BN_priv_rand_range(priv, order)) {
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "BN_priv_rand_range failed");
+    return nullptr;
+  }
+
+  EC_POINT* pub = EC_POINT_new(group);
+  if (!pub) {
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "EC_POINT_new failed");
+    return nullptr;
+  }
+
+  // Compute public point = priv * G
+  if (1 != EC_POINT_mul(group, pub, priv, nullptr, nullptr, ctx)) {
+    EC_POINT_free(pub);
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "EC_POINT_mul failed");
+    return nullptr;
+  }
+
+  int field_bits = EC_GROUP_get_degree(group);
+  int field_bytes = (field_bits + 7) / 8;
+
+  // private key bytes
+  int dlen = BN_num_bytes(priv);
+  if (dlen > field_bytes) dlen = field_bytes;
+  std::vector<unsigned char> db(field_bytes, 0);
+  BN_bn2bin(priv, db.data() + (field_bytes - BN_num_bytes(priv)));
+
+  // affine coordinates
+  BIGNUM* x = BN_new();
+  BIGNUM* y = BN_new();
+  if (!x || !y) {
+    if (x) BN_free(x);
+    if (y) BN_free(y);
+    EC_POINT_free(pub);
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "BN allocation failed");
+    return nullptr;
+  }
+
+  /* Use modern API when available */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  if (1 != EC_POINT_get_affine_coordinates(group, pub, x, y, ctx)) {
+#else
+  if (1 != EC_POINT_get_affine_coordinates_GFp(group, pub, x, y, ctx)) {
+#endif
+    BN_free(x); BN_free(y);
+    EC_POINT_free(pub);
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "EC_POINT_get_affine_coordinates failed");
+    return nullptr;
+  }
+
+  int xlen = BN_num_bytes(x);
+  int ylen = BN_num_bytes(y);
+  if (xlen > field_bytes || ylen > field_bytes) {
+    BN_free(x); BN_free(y);
+    EC_POINT_free(pub);
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "coordinate size larger than field");
+    return nullptr;
+  }
+
+  std::vector<unsigned char> xb(field_bytes, 0);
+  std::vector<unsigned char> yb(field_bytes, 0);
+  BN_bn2bin(x, xb.data() + (field_bytes - xlen));
+  BN_bn2bin(y, yb.data() + (field_bytes - ylen));
+
+  std::string Db64 = base64UrlEncodeNoPad(db.data(), (int)db.size());
+  std::string Xb64 = base64UrlEncodeNoPad(xb.data(), (int)xb.size());
+  std::string Yb64 = base64UrlEncodeNoPad(yb.data(), (int)yb.size());
+
+  jobjectArray arr = env->NewObjectArray(2, env->FindClass("java/lang/String"), nullptr);
+  if (!arr) {
+    BN_free(x); BN_free(y);
+    EC_POINT_free(pub);
+    BN_free(priv);
+    BN_CTX_free(ctx);
+    EC_GROUP_free(group);
+    throwRuntimeException(env, "failed to allocate result array");
+    return nullptr;
+  }
+
+  std::string pubstr = Xb64 + "." + Yb64;
+  jstring jpriv = env->NewStringUTF(Db64.c_str());
+  jstring jpub = env->NewStringUTF(pubstr.c_str());
+  env->SetObjectArrayElement(arr, 0, jpriv);
+  env->SetObjectArrayElement(arr, 1, jpub);
+
+  BN_free(x); BN_free(y);
+  EC_POINT_free(pub);
+  BN_free(priv);
+  BN_CTX_free(ctx);
+  EC_GROUP_free(group);
+
+  return arr;
+}

@@ -27,29 +27,42 @@ object SEAPair {
 
   @JvmStatic
   private external fun nativePublicFromPrivate(inputPrivateKey: String): String?
+  @JvmStatic
+  private external fun nativePair(): Array<String>?
 
   @JvmStatic
   fun pair(): Array<String> {
-    val p = NISTNamedCurves.getByName("P-256")
-    val params = ECDomainParameters(p.curve, p.g, p.n, p.h)
-    val random = SecureRandom()
-    val pGen = ECKeyPairGenerator()
-    val genParam = ECKeyGenerationParameters(params, random)
-    pGen.init(genParam)
-    val pair: AsymmetricCipherKeyPair = pGen.generateKeyPair()
-    val priv = pair.private as ECPrivateKeyParameters
-    val pub = pair.public as ECPublicKeyParameters
-    val d = priv.d
-    val ecPoint: ECPoint = pub.q
-    val x = ecPoint.affineXCoord.toBigInteger()
-    val y = ecPoint.affineYCoord.toBigInteger()
-    val X = BigIntegers.asUnsignedByteArray(x)
-    val Y = BigIntegers.asUnsignedByteArray(y)
-    val D = BigIntegers.asUnsignedByteArray(d)
-    val out = Array(2) { "" }
-    out[0] = Base64.encodeToString(D, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-    out[1] = Base64.encodeToString(X, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP) + "." + Base64.encodeToString(Y, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
-    return out
+    // Explicit native/Java branch per migration style.
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val nativeOut = nativePair()
+        if (nativeOut != null) return nativeOut
+        throw RuntimeException("nativePair returned null")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativePair failed", e)
+      }
+    } else {
+      val p = NISTNamedCurves.getByName("P-256")
+      val params = ECDomainParameters(p.curve, p.g, p.n, p.h)
+      val random = SecureRandom()
+      val pGen = ECKeyPairGenerator()
+      val genParam = ECKeyGenerationParameters(params, random)
+      pGen.init(genParam)
+      val pair: AsymmetricCipherKeyPair = pGen.generateKeyPair()
+      val priv = pair.private as ECPrivateKeyParameters
+      val pub = pair.public as ECPublicKeyParameters
+      val d = priv.d
+      val ecPoint: ECPoint = pub.q
+      val x = ecPoint.affineXCoord.toBigInteger()
+      val y = ecPoint.affineYCoord.toBigInteger()
+      val X = BigIntegers.asUnsignedByteArray(x)
+      val Y = BigIntegers.asUnsignedByteArray(y)
+      val D = BigIntegers.asUnsignedByteArray(d)
+      val out = Array(2) { "" }
+      out[0] = Base64.encodeToString(D, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+      out[1] = Base64.encodeToString(X, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP) + "." + Base64.encodeToString(Y, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+      return out
+    }
   }
 
   @JvmStatic
