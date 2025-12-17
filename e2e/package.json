@@ -6,7 +6,6 @@
     "start": "test-moniker -s"
   },
   "dependencies": {
-    "native-sea": "file:..",
     "events": "^3.3.0",
     "expo": "~54.0.25",
     "expo-status-bar": "~3.0.8",
@@ -14,6 +13,8 @@
     "gun": "github:amark/gun",
     "gun-rebuild": "github:bmatusiak/gun-rebuild",
     "gun-rebuild-sea": "github:bmatusiak/gun-rebuild-sea",
+    "native-sea": "file:..",
+    "native-sea-openssl": "https://github.com/bmatusiak/native-sea-openssl/releases/download/v3.5.4/native-sea-openssl.tar.gz",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-webview": "13.15.0",
@@ -29,8 +30,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-native": "^5.0.0",
     "prettier": "^3.7.4",
-    "typescript-eslint": "^8.48.1",
-    "text-encoding": "^0.7.0"
+    "text-encoding": "^0.7.0",
+    "typescript-eslint": "^8.48.1"
   }
-  
 }
