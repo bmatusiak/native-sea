@@ -11,6 +11,8 @@ class NativeSeaModule : Module() {
   companion object {
     @JvmField
     var useNativeCrypto: Boolean = true
+    @JvmField
+    var useNativeSign: Boolean = false
     init {
       try {
         if (Security.getProvider("SC") == null) {

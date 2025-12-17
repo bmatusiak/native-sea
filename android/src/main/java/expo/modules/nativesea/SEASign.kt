@@ -16,6 +16,8 @@ import java.security.*
 import java.security.spec.*
 
 object SEASign {
+  private external fun nativeSign(privB64: String, data: ByteArray): String?
+  private external fun nativeVerify(pubXY: String, data: ByteArray, sigB64: String): Boolean
   @JvmStatic
   fun encodeRS(sigBlob: ByteArray): ByteArray {
     val r = BigInteger(1, Arrays.copyOfRange(sigBlob, 0, 32)).toByteArray()
@@ -42,23 +44,33 @@ object SEASign {
 
   @JvmStatic
   fun sign(_privKey: String, strByte: ByteArray): String {
-    val priv = importKey("secp256r1", _privKey, true) as PrivateKey
-    val ecdsa = Signature.getInstance("SHA256withECDSA", "SC")
-    ecdsa.initSign(priv)
-    ecdsa.update(strByte)
-    val signature = ecdsa.sign()
-    val rs = decodeRS(signature)
-    return Base64.encodeToString(rs, Base64.NO_WRAP)
+    if (NativeSeaModule.useNativeCrypto && NativeSeaModule.useNativeSign) {
+      val out = nativeSign(_privKey, strByte)
+      if (out == null) throw RuntimeException("nativeSign returned null")
+      return out
+    } else {
+      val priv = importKey("secp256r1", _privKey, true) as PrivateKey
+      val ecdsa = Signature.getInstance("SHA256withECDSA", "SC")
+      ecdsa.initSign(priv)
+      ecdsa.update(strByte)
+      val signature = ecdsa.sign()
+      val rs = decodeRS(signature)
+      return Base64.encodeToString(rs, Base64.NO_WRAP)
+    }
   }
 
   @JvmStatic
   fun verify(_pubKey: String, strByte: ByteArray, _sigRS: String): Boolean {
-    val sigRS = Base64.decode(_sigRS, Base64.NO_WRAP)
-    val pub = importKey("secp256r1", _pubKey, false) as PublicKey
-    val ecdsaVerify = Signature.getInstance("SHA256withECDSA", "SC")
-    ecdsaVerify.initVerify(pub)
-    ecdsaVerify.update(strByte)
-    return ecdsaVerify.verify(encodeRS(sigRS))
+    if (NativeSeaModule.useNativeCrypto) {
+      return nativeVerify(_pubKey, strByte, _sigRS)
+    } else {
+      val sigRS = Base64.decode(_sigRS, Base64.NO_WRAP)
+      val pub = importKey("secp256r1", _pubKey, false) as PublicKey
+      val ecdsaVerify = Signature.getInstance("SHA256withECDSA", "SC")
+      ecdsaVerify.initVerify(pub)
+      ecdsaVerify.update(strByte)
+      return ecdsaVerify.verify(encodeRS(sigRS))
+    }
   }
 
   @JvmStatic
