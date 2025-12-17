@@ -18,7 +18,7 @@ object SEAWork {
   }
 
   @JvmStatic
-  external fun nativeDigest(algo: String, data: ByteArray?): ByteArray?
+  private external fun nativeDigest(algo: String, data: ByteArray?): ByteArray?
 
   @JvmStatic
   fun pbkdf2(pwd: String, salt: String, iter: Int?, bitSize: Int?): String {
