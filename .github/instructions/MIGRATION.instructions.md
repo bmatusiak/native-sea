@@ -7,9 +7,13 @@ This project is being migrated from Java/SpongyCastle to native C++ using OpenSS
 
 Core principles
 ---------------
-- Keep explicit if/else branches in Kotlin to show whether native code is used:
+- Always use an explicit if/else branch in Kotlin to choose native vs Java:
   - `if (NativeSeaModule.useNativeCrypto) { /* native */ } else { /* java fallback */ }`
-  - This makes it visually obvious which code paths are ported and which are still Java.
+  - The `else` block must contain the full Java fallback implementation (not just a catch path).
+  - Do not silently attempt native and then quietly fall back inside a `try` block — prefer one of two patterns:
+    - Strict native-first (throw on native failure): call native and throw on error so tests fail fast.
+    - Controlled fallback (explicit `else` or a dedicated `NativeSeaModule.forceJavaFallback` flag): only use Java code when the boolean is false.
+  - This explicit control makes it visually obvious which code paths are ported and which are still Java.
 - Do not expose native/C++ functions directly to public APIs (JS/React Native). Keep native JNI methods private and wrapped by controlled Kotlin functions (e.g. `SEAWork.pbkdf2(...)`).
 - Prefer deterministic encodings and names: always use `StandardCharsets.UTF_8` when converting strings to bytes, and Base64 encode results with `Base64.NO_WRAP` on the Kotlin side.
 
@@ -21,13 +25,34 @@ Why the explicit if/else matters
 
 Native API exposure rules
 -------------------------
-- JNI methods should be `private` and only callable from internal Kotlin helpers.
+- JNI methods must be `private` and only callable from internal Kotlin helpers. Do not expose native functions directly to public JS APIs.
 - Native signatures should use non-null types where possible. Example recommended signatures:
 
   - `private external fun nativeDigest(algo: String, data: ByteArray): ByteArray`
   - `private external fun nativePbkdf2(pwd: String, salt: ByteArray, iter: Int, keyLenBytes: Int): ByteArray`
 
-- Note: prefer `keyLenBytes` in native API (OpenSSL expects bytes). If you keep `bits` in Kotlin, convert to bytes before calling JNI and document the conversion.
+- Prefer `keyLenBytes` in native APIs (OpenSSL expects bytes). If Kotlin uses `bits`, convert to bytes before calling JNI and document the conversion.
+
+Kotlin calling pattern (required style):
+
+```
+// required explicit pattern
+if (NativeSeaModule.useNativeCrypto) {
+  // call private native method and treat failure as an exception
+  try {
+    val out = nativeSomething(args)
+    if (out == null) throw RuntimeException("nativeSomething returned null")
+    return out
+  } catch (e: Throwable) {
+    throw RuntimeException("nativeSomething failed", e)
+  }
+} else {
+  // full Java fallback implementation goes here (no hidden fallbacks)
+  return javaFallbackImplementation(args)
+}
+```
+
+This pattern ensures reviewers and CI can see exactly which code is native and which is Java, and avoids subtle, silent fallback behavior.
 
 Algorithm name and canonicalization
 ----------------------------------
