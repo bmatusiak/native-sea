@@ -44,7 +44,7 @@ object SEASign {
 
   @JvmStatic
   fun sign(_privKey: String, strByte: ByteArray): String {
-    if (NativeSeaModule.useNativeCrypto && NativeSeaModule.useNativeSign) {
+    if (NativeSeaModule.useNativeCrypto) {
       val out = nativeSign(_privKey, strByte)
       if (out == null) throw RuntimeException("nativeSign returned null")
       return out
