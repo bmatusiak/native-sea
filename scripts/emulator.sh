@@ -4,7 +4,7 @@
 AVD_NAME="dev"
 EMULATOR_PATH="$ANDROID_HOME/emulator/emulator"
 AVD_DIR="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$AVD_NAME.avd"
-DEBUG=false 
+DEBUG=true 
 
 # --- Flag: --kill ---
 if [[ "$1" == "--kill" ]]; then
@@ -69,20 +69,37 @@ done
 # --- Post-Boot Optimizations ---
 echo "✨ Applying UI/CPU optimizations..."
 adb shell <<EOF
-settings put global window_animation_scale 0
-settings put global transition_animation_scale 0
-settings put global animator_duration_scale 0
-settings put global wifi_scan_always_enabled 0
-settings put global bluetooth_on 0
-settings put global assisted_gps_enabled 0
-settings put global auto_time 0
-settings put global auto_time_zone 0
-settings put global stay_on_while_plugged_in 3
-settings put global package_verifier_enable 0
-settings put secure location_mode 0
-settings put system screen_brightness 0
-cmd power set-fixed-performance-mode-enabled true
-settings put global restricted_device_performance 0,0
+    settings put global window_animation_scale 0
+    settings put global transition_animation_scale 0
+    settings put global animator_duration_scale 0
+    settings put global wifi_scan_always_enabled 0
+    settings put global bluetooth_on 0
+    settings put global assisted_gps_enabled 0
+    settings put global auto_time 0
+    settings put global auto_time_zone 0
+    settings put global stay_on_while_plugged_in 3
+    settings put global package_verifier_enable 0
+    settings put secure location_mode 0
+    settings put system screen_brightness 0
+    cmd power set-fixed-performance-mode-enabled true
+    settings put global restricted_device_performance 0,0
+    settings put global cached_apps_freezer enabled
+    settings put global system_capabilities 100
+    setprop debug.sf.hw 1
+EOF
+
+
+echo "✨ Disabling pre-installed apps..."
+adb shell <<EOF
+    pm disable-user --user 0 com.android.chrome
+    pm disable-user --user 0 com.google.android.youtube
+    pm disable-user --user 0 com.google.android.apps.youtube.music
+    pm disable-user --user 0 com.google.android.contacts
+    pm disable-user --user 0 com.google.android.calendar
+    pm disable-user --user 0 com.google.android.apps.docs
+    pm disable-user --user 0 com.google.android.apps.maps
+    pm disable-user --user 0 com.google.android.apps.photos
+    pm disable-user --user 0 com.google.android.apps.messaging
 EOF
 
 echo "✅ Emulator is ready!"
