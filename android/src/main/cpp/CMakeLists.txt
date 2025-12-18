@@ -27,7 +27,6 @@ add_library(native_sea SHARED
   pbkdf2.cpp
   native_seapair.cpp
   native_seacrypto.cpp
-  native_seasign.cpp
 )
 
 target_include_directories(native_sea PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

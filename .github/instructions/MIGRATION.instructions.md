@@ -1,6 +1,13 @@
 Migration to native C++ (OpenSSL) — style notes
 ===============================================
 
+Command to run , build and tests (restricted and enforced commands)
+--------------------
+Use `npm test`, this uses test-moniker to build, install, and capture logs, for the e2e app
+Do not run `./gradlew` or other commands directly; use the npm scripts to ensure consistent environment and logging.
+
+
+
 Overview
 --------
 This project is being migrated from Java/SpongyCastle to native C++ using OpenSSL. The goal is an incremental, safe migration: keep a clear native vs Java fallback boundary, avoid exposing C++ functions to public/JS consumers, and remove SpongyCastle only when the native implementation is fully validated.
@@ -78,7 +85,7 @@ Threading and performance
 Java fallback considerations
 --------------------------
 - While migrating, keep the Java fallback intact as an explicit `else` branch.
-- When removing SpongyCastle, prefer `SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")` (platform API) where available to avoid third-party deps.
+- When removing SpongyCastle, prefer `SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")` (platform API) where available to discontinue third-party deps.
 
 Validation and testing checklist
 -------------------------------
@@ -100,9 +107,9 @@ Quick migration tips
 - Implement digest with OpenSSL EVP and canonicalize algorithm names.
 - Keep `native` methods private; provide a single public Kotlin wrapper that encodes/decodes and decides fallback.
 
-Use current, non-deprecated OpenSSL APIs
+Use current, non-deprecated OpenSSL v3 APIs
 ---------------------------------------
-- Target modern, supported OpenSSL APIs and avoid deprecated legacy interfaces. For PBKDF2 and digests prefer:
+- Target only modern, supported OpenSSL v3 APIs and do not use deprecated legacy interfaces. For PBKDF2 and digests prefer:
   - `PKCS5_PBKDF2_HMAC` (for PBKDF2-HMAC-SHA256) or the higher-level `EVP_KDF`/`EVP_MAC` interfaces on OpenSSL 3.x when appropriate.
   - EVP digest APIs (e.g. `EVP_sha256()` / `EVP_Digest*` / `EVP_MD_CTX_new` / `EVP_DigestSign*`) rather than low-level or removed functions.
 - Be mindful of OpenSSL provider/model changes in 3.x — use documented, supported patterns and test against your minimum supported OpenSSL version.
