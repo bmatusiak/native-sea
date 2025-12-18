@@ -8,6 +8,9 @@ NativeSea.install(Gun);
 module.exports = function _00_gun_setup({ describe, it }) {
     describe(_00_gun_setup.name, () => {
         it('SeaProxy setup', async ({ log, assert, render }) => {
+            if (globalThis.SeaProxy) return; //already loaded
+            globalThis.SeaProxy = true; //signal that SeaProxy that it has been loaded already
+
             const { WebViewComponent, gunView } = await GunHost(SeaProxy.contextSrc, SeaProxy.debug);
 
             render(WebViewComponent);
