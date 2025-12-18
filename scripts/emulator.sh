@@ -4,14 +4,14 @@
 AVD_NAME="dev"
 EMULATOR_PATH="$ANDROID_HOME/emulator/emulator"
 AVD_DIR="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$AVD_NAME.avd"
-DEBUG=false 
+DEBUG=true 
 
 # --- Flag: --kill ---
 if [[ "$1" == "--kill" ]]; then
     echo "💾 Saving state and shutting down..."
     adb emu kill > /dev/null 2>&1
     
-    timeout=10
+    timeout=30
     while pgrep -f "qemu-system" > /dev/null && [ $timeout -gt 0 ]; do
         sleep 1
         ((timeout--))
@@ -47,7 +47,7 @@ fi
 LOG_TARGET="/dev/null"
 [[ "$DEBUG" = true ]] && LOG_TARGET="/dev/stdout"
 
-BOOT_ARGS="-avd $AVD_NAME -no-window -no-audio -no-boot-anim -memory 2048 -gpu swiftshader_indirect $WIPE_FLAG"
+BOOT_ARGS="-avd $AVD_NAME -no-window -no-audio -no-boot-anim -memory 2048 -gpu off $WIPE_FLAG"
 
 if [[ "$1" == "--wipe" ]]; then
     echo "🚀 Starting fresh boot (Wipe mode)..."
@@ -68,19 +68,19 @@ done
 
 # --- Post-Boot Optimizations ---
 echo "✨ Applying UI/CPU optimizations..."
-echo "
-  settings put global window_animation_scale 0;
-  settings put global transition_animation_scale 0;
-  settings put global animator_duration_scale 0;
-  settings put global wifi_scan_always_enabled 0;
-  settings put global bluetooth_on 0;
-  settings put global assisted_gps_enabled 0;
-  settings put global auto_time 0;
-  settings put global auto_time_zone 0;
-  settings put global stay_on_while_plugged_in 3;
-  settings put global package_verifier_enable 0;
-  settings put secure location_mode 0;
-  settings put system screen_brightness 0;
-" | adb shell
+adb shell <<EOF
+settings put global window_animation_scale 0
+settings put global transition_animation_scale 0
+settings put global animator_duration_scale 0
+settings put global wifi_scan_always_enabled 0
+settings put global bluetooth_on 0
+settings put global assisted_gps_enabled 0
+settings put global auto_time 0
+settings put global auto_time_zone 0
+settings put global stay_on_while_plugged_in 3
+settings put global package_verifier_enable 0
+settings put secure location_mode 0
+settings put system screen_brightness 0
+EOF
 
 echo "✅ Emulator is ready!"
