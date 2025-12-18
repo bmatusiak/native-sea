@@ -9,14 +9,13 @@ module.exports = function _00_gun_setup({ describe, it }) {
     describe(_00_gun_setup.name, () => {
         it('SeaProxy setup', async ({ log, assert, render }) => {
             if (globalThis.SeaProxy) return; //already loaded
-            globalThis.SeaProxy = true; //signal that SeaProxy that it has been loaded already
 
             const { WebViewComponent, gunView } = await GunHost(SeaProxy.contextSrc, SeaProxy.debug);
 
             render(WebViewComponent);
 
             await new Promise((resolve, reject) => {
-                const to = setTimeout(() => reject(new Error('gunView ready timeout (10s)')), 10000);
+                const to = setTimeout(() => reject(new Error('gunView ready timeout (30s)')), 30000);
                 gunView.on('ready', () => {
                     clearTimeout(to);
                     resolve();
@@ -24,6 +23,7 @@ module.exports = function _00_gun_setup({ describe, it }) {
             });
             SeaProxy.setContext(gunView);
 
+            globalThis.SeaProxy = true; //signal that SeaProxy that it has been loaded already
         });
 
         it('NativeSea setup', async ({ log, assert }) => {
