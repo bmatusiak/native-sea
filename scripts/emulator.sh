@@ -81,6 +81,8 @@ settings put global stay_on_while_plugged_in 3
 settings put global package_verifier_enable 0
 settings put secure location_mode 0
 settings put system screen_brightness 0
+cmd power set-fixed-performance-mode-enabled true
+settings put global restricted_device_performance 0,0
 EOF
 
 echo "✅ Emulator is ready!"
