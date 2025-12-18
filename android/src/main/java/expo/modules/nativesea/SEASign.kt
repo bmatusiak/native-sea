@@ -16,6 +16,20 @@ import java.security.*
 import java.security.spec.*
 
 object SEASign {
+  init {
+    try {
+      System.loadLibrary("native_sea")
+    } catch (e: UnsatisfiedLinkError) {
+      // library may not be available during some IDE tasks - fall back to Java
+    }
+  }
+
+  @JvmStatic
+  private external fun nativeSign(privKeyB64Url: String, data: ByteArray?): ByteArray?
+
+  @JvmStatic
+  private external fun nativeVerify(pubKeyXYB64Url: String, data: ByteArray?, sigRS: ByteArray?): Boolean
+
   @JvmStatic
   fun encodeRS(sigBlob: ByteArray): ByteArray {
     val r = BigInteger(1, Arrays.copyOfRange(sigBlob, 0, 32)).toByteArray()
@@ -42,23 +56,45 @@ object SEASign {
 
   @JvmStatic
   fun sign(_privKey: String, strByte: ByteArray): String {
-    val priv = importKey("secp256r1", _privKey, true) as PrivateKey
-    val ecdsa = Signature.getInstance("SHA256withECDSA", "SC")
-    ecdsa.initSign(priv)
-    ecdsa.update(strByte)
-    val signature = ecdsa.sign()
-    val rs = decodeRS(signature)
-    return Base64.encodeToString(rs, Base64.NO_WRAP)
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        val out = nativeSign(_privKey, strByte)
+        if (out != null) return Base64.encodeToString(out, Base64.NO_WRAP)
+        throw IllegalStateException("nativeSign returned null")
+      } catch (e: Throwable) {
+        throw RuntimeException("nativeSign failed", e)
+      }
+    } else {
+      val priv = importKey("secp256r1", _privKey, true) as PrivateKey
+      // SEA passes a SHA-256 digest; sign the digest directly (no additional hashing).
+      val ecdsa = Signature.getInstance("NONEwithECDSA", "SC")
+      ecdsa.initSign(priv)
+      ecdsa.update(strByte)
+      val signature = ecdsa.sign()
+      val rs = decodeRS(signature)
+      return Base64.encodeToString(rs, Base64.NO_WRAP)
+    }
   }
 
   @JvmStatic
   fun verify(_pubKey: String, strByte: ByteArray, _sigRS: String): Boolean {
+    val pubClean = _pubKey.replace("\\.", ".")
     val sigRS = Base64.decode(_sigRS, Base64.NO_WRAP)
-    val pub = importKey("secp256r1", _pubKey, false) as PublicKey
-    val ecdsaVerify = Signature.getInstance("SHA256withECDSA", "SC")
-    ecdsaVerify.initVerify(pub)
-    ecdsaVerify.update(strByte)
-    return ecdsaVerify.verify(encodeRS(sigRS))
+
+    if (NativeSeaModule.useNativeCrypto) {
+      try {
+        return nativeVerify(pubClean, strByte, sigRS)
+      } catch (e: Throwable) {
+        throw RuntimeException("nativeVerify failed", e)
+      }
+    } else {
+      val pub = importKey("secp256r1", pubClean, false) as PublicKey
+      // SEA passes a SHA-256 digest; verify the digest directly (no additional hashing).
+      val ecdsaVerify = Signature.getInstance("NONEwithECDSA", "SC")
+      ecdsaVerify.initVerify(pub)
+      ecdsaVerify.update(strByte)
+      return ecdsaVerify.verify(encodeRS(sigRS))
+    }
   }
 
   @JvmStatic
@@ -75,7 +111,7 @@ object SEASign {
       // split on literal dot (.) between X and Y components
       val xy = inputKey.split("\\.".toRegex())
       if (xy.size < 2) {
-        
+        throw IllegalArgumentException("Invalid public key format, expected 'X.Y' parts but got: '$inputKey'")
       }
       val publicKeyX = Base64.decode(xy[0], Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
       val publicKeyY = Base64.decode(xy[1], Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
