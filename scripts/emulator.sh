@@ -9,7 +9,7 @@ DEBUG=true
 # --- Flag: --kill ---
 if [[ "$1" == "--kill" ]]; then
     echo "💾 Saving state and shutting down..."
-    adb emu kill > /dev/null 2>&1
+    adb -s emulator-5554 emu kill > /dev/null 2>&1
     
     timeout=30
     while pgrep -f "qemu-system" > /dev/null && [ $timeout -gt 0 ]; do
@@ -59,16 +59,16 @@ $EMULATOR_PATH $BOOT_ARGS > $LOG_TARGET 2>&1 &
 EMU_PID=$!
 
 echo "⏳ Waiting for Android OS..."
-adb wait-for-device
+adb -s emulator-5554 wait-for-device
 
 # FIXED LINE: Uses [[ ]] for better string handling and prevents syntax errors if adb returns empty
-while [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]]; do
+while [[ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]]; do
     sleep 2
 done
 
 # --- Post-Boot Optimizations ---
 echo "✨ Applying UI/CPU optimizations..."
-adb shell <<EOF
+adb -s emulator-5554 shell <<EOF
     settings put global window_animation_scale 0
     settings put global transition_animation_scale 0
     settings put global animator_duration_scale 0
@@ -90,7 +90,7 @@ EOF
 
 
 echo "✨ Disabling pre-installed apps..."
-adb shell <<EOF
+adb -s emulator-5554 shell <<EOF
     pm disable-user --user 0 com.android.chrome
     pm disable-user --user 0 com.google.android.youtube
     pm disable-user --user 0 com.google.android.apps.youtube.music
