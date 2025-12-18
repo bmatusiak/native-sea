@@ -4,7 +4,7 @@
 AVD_NAME="dev"
 EMULATOR_PATH="$ANDROID_HOME/emulator/emulator"
 AVD_DIR="${ANDROID_AVD_HOME:-$HOME/.android/avd}/$AVD_NAME.avd"
-DEBUG=true 
+DEBUG=false 
 
 # --- Flag: --kill ---
 if [[ "$1" == "--kill" ]]; then
